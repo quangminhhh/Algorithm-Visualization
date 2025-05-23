@@ -142,10 +142,10 @@
                 </div>
 
                 <div class="flex flex-col gap-2">
-                    <button id="startBtn" class="glow-button bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold transition-all">
+                    <button id="startBtn" class="glow-button bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all">
                         <i class="fas fa-play mr-2"></i>Start
                     </button>
-                    <button id="resetBtn" class="glow-button bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-semibold transition-all">
+                    <button id="resetBtn" class="glow-button bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-all">
                         <i class="fas fa-refresh mr-2"></i>Reset
                     </button>
                 </div>
@@ -1032,7 +1032,14 @@
                 // GSAP animations for interactive elements (buttons)
                 try {
                     if (typeof gsap !== 'undefined') {
-                        gsap.from('.glow-button', { duration: 1, scale: 0.8, opacity: 0, stagger: 0.2, ease: 'back.out(1.7)', delay: 1 });
+                        gsap.from('.glow-button', {
+                            duration: 1,
+                            scale: 0.8,
+                            // opacity: 0, // Removed to prevent buttons from becoming invisible
+                            stagger: 0.2,
+                            ease: 'back.out(1.7)',
+                            delay: 0.5 // Shortened delay
+                        });
                     } else {
                         console.warn('GSAP library not loaded.');
                     }
