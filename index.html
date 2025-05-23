@@ -355,10 +355,14 @@
                 });
 
                 // Initialize tooltips for new bars
-                tippy('[data-tippy-content]', {
-                    theme: 'dark',
-                    animation: 'scale'
-                });
+                if (typeof tippy !== 'undefined') {
+                    tippy('[data-tippy-content]', {
+                        theme: 'dark',
+                        animation: 'scale'
+                    });
+                } else {
+                    console.warn('Tippy.js not loaded, tooltips will not be available.');
+                }
             }
 
             async highlightBars(indices, className, duration = 300) {
@@ -389,8 +393,12 @@
                 bars[j].style.height = tempHeight;
 
                 // Update tooltips
-                bars[i].setAttribute('data-tippy-content', `Value: ${this.array[i]}, Index: ${i}`);
-                bars[j].setAttribute('data-tippy-content', `Value: ${this.array[j]}, Index: ${j}`);
+                if (bars[i]._tippy) {
+                    bars[i].setAttribute('data-tippy-content', `Value: ${this.array[i]}, Index: ${i}`);
+                }
+                if (bars[j]._tippy) {
+                     bars[j].setAttribute('data-tippy-content', `Value: ${this.array[j]}, Index: ${j}`);
+                }
 
 
                 this.updateStats('swaps');
@@ -458,8 +466,10 @@
 
                         this.array[j + 1] = this.array[j];
                         const bars = document.querySelectorAll('.bar');
-                        bars[j + 1].style.height = bars[j].style.height;
-                        bars[j + 1].setAttribute('data-tippy-content', `Value: ${this.array[j+1]}, Index: ${j+1}`);
+                        if (bars[j + 1]) {
+                            bars[j + 1].style.height = bars[j].style.height;
+                            if (bars[j+1]._tippy) bars[j + 1].setAttribute('data-tippy-content', `Value: ${this.array[j+1]}, Index: ${j+1}`);
+                        }
 
 
                         j--;
@@ -468,8 +478,10 @@
 
                     this.array[j + 1] = key;
                     const bars = document.querySelectorAll('.bar');
-                    bars[j + 1].style.height = `${key}px`;
-                    bars[j + 1].setAttribute('data-tippy-content', `Value: ${key}, Index: ${j+1}`);
+                    if (bars[j + 1]) {
+                        bars[j + 1].style.height = `${key}px`;
+                         if (bars[j+1]._tippy) bars[j + 1].setAttribute('data-tippy-content', `Value: ${key}, Index: ${j+1}`);
+                    }
 
 
                     // Mark all elements up to i as sorted (conceptually)
@@ -515,8 +527,10 @@
                         this.array[k] = rightArr[j];
                         j++;
                     }
-                    bars[k].style.height = `${this.array[k]}px`;
-                    bars[k].setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
+                    if (bars[k]) {
+                        bars[k].style.height = `${this.array[k]}px`;
+                        if (bars[k]._tippy) bars[k].setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
+                    }
                     await this.highlightBars([k], 'bar-swapping', this.speed / 2); // Show placement
                     this.updateStats('arrayAccess'); // For write
                     k++;
@@ -525,8 +539,10 @@
                 while (i < leftArr.length) {
                     if (!this.isRunning) return;
                     this.array[k] = leftArr[i];
-                    bars[k].style.height = `${this.array[k]}px`;
-                    bars[k].setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
+                    if (bars[k]) {
+                        bars[k].style.height = `${this.array[k]}px`;
+                        if (bars[k]._tippy) bars[k].setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
+                    }
                     await this.highlightBars([k], 'bar-swapping', this.speed / 2);
                     this.updateStats('arrayAccess');
                     i++;
@@ -536,8 +552,10 @@
                 while (j < rightArr.length) {
                     if (!this.isRunning) return;
                     this.array[k] = rightArr[j];
-                    bars[k].style.height = `${this.array[k]}px`;
-                    bars[k].setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
+                     if (bars[k]) {
+                        bars[k].style.height = `${this.array[k]}px`;
+                        if (bars[k]._tippy) bars[k].setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
+                    }
                     await this.highlightBars([k], 'bar-swapping', this.speed / 2);
                     this.updateStats('arrayAccess');
                     j++;
@@ -695,6 +713,14 @@
                     }
                 } catch (error) {
                     console.error('Sorting error:', error);
+                     // Show a user-friendly error message in the UI if possible
+                    const vizArea = document.getElementById('visualization');
+                    if (vizArea) {
+                        const errorMsg = document.createElement('p');
+                        errorMsg.textContent = 'An error occurred during sorting. Please reset and try again.';
+                        errorMsg.className = 'text-red-500 text-center mt-4';
+                        vizArea.appendChild(errorMsg);
+                    }
                 } finally {
                     this.isRunning = false;
                     startBtn.innerHTML = '<i class="fas fa-play mr-2"></i>Start';
@@ -726,7 +752,7 @@
                 }
 
                 // Fireworks effect
-                if (this.isRunning) { // Only run if not reset
+                if (this.isRunning && typeof anime !== 'undefined') { // Only run if not reset
                     anime({
                         targets: '.bar',
                         scale: [
@@ -751,7 +777,7 @@
 
 
             async highlightAllSorted() {
-                const bars = document.querySelectorAll('.bar');
+                // const bars = document.querySelectorAll('.bar'); // Not needed, already have this.array
                 for (let i = 0; i < this.array.length; i++) {
                     if (!this.isRunning) return;
                     await this.highlightBars([i], 'bar-sorted', Math.max(10, 50 - this.array.length/2));
@@ -769,6 +795,13 @@
                     document.getElementById('arraySize').disabled = false;
                     document.getElementById('algorithmSelect').disabled = false;
                 }
+                 // Remove any error messages from visualization area
+                const vizArea = document.getElementById('visualization');
+                const errorMsg = vizArea.querySelector('p.text-red-500');
+                if (errorMsg) {
+                    errorMsg.remove();
+                }
+
                 this.generateArray(); // Generates new array and calls renderArray & resetStats
                 // Clear any lingering highlights or special styles from bars
                 document.querySelectorAll('.bar').forEach(bar => {
@@ -788,7 +821,7 @@
                 this.stats[type]++;
                 if (type === 'comparisons' || type === 'swaps') {
                     this.stats.arrayAccess += (type === 'comparisons' ? 2 : 4); // Approx accesses
-                } else {
+                } else { // For direct array writes in merge sort etc.
                     this.stats.arrayAccess++;
                 }
                 this.updateStatsDisplay();
@@ -817,7 +850,13 @@
             }
 
             createComplexityChart() {
-                const ctx = document.getElementById('complexityChart').getContext('2d');
+                const ctxElement = document.getElementById('complexityChart');
+                if (!ctxElement) {
+                    console.error("Canvas element for complexity chart not found.");
+                    return;
+                }
+                const ctx = ctxElement.getContext('2d');
+
 
                 const data = {
                     labels: ['10', '50', '100', '500', '1000'], // Number of elements (n)
@@ -837,7 +876,7 @@
                                 100 * Math.log2(100), // approx 664
                                 500 * Math.log2(500), // approx 4482
                                 1000 * Math.log2(1000) // approx 9965
-                            ].map(Math.round),
+                            ].map(val => Math.round(val)),
                             borderColor: 'rgb(54, 162, 235)',
                             backgroundColor: 'rgba(54, 162, 235, 0.2)',
                             tension: 0.4
@@ -851,108 +890,170 @@
                         }
                     ]
                 };
-
-                new Chart(ctx, {
-                    type: 'line',
-                    data: data,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Time Complexity Comparison',
-                                color: 'white',
-                                font: { size: 16 }
-                            },
-                            legend: {
-                                labels: {
-                                    color: 'white'
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Number of Elements (n)',
-                                    color: 'white'
-                                },
-                                ticks: {
-                                    color: 'white'
-                                },
-                                grid: {
-                                    color: 'rgba(255, 255, 255, 0.1)'
-                                }
-                            },
-                            y: {
-                                title: {
-                                    display: true,
-                                    text: 'Number of Operations (approx.)',
-                                    color: 'white'
-                                },
-                                ticks: {
-                                    color: 'white'
-                                },
-                                grid: {
-                                    color: 'rgba(255, 255, 255, 0.1)'
-                                },
-                                type: 'logarithmic', // Use logarithmic scale for better visualization
-                                afterBuildTicks: chart => { // Custom ticks for log scale
-                                    const ticks = [];
-                                    let currentTick = 1;
-                                    while (currentTick <= chart.scales.y.max) {
-                                        ticks.push(currentTick);
-                                        if (currentTick < 10) currentTick +=1;
-                                        else if (currentTick < 100) currentTick +=10;
-                                        else if (currentTick < 1000) currentTick +=100;
-                                        else if (currentTick < 10000) currentTick +=1000;
-                                        else if (currentTick < 100000) currentTick +=10000;
-                                        else currentTick +=100000;
-
-                                        if (ticks.length > 20) break; // Limit number of ticks
+                try {
+                    if (typeof Chart !== 'undefined') {
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: data,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    title: {
+                                        display: true,
+                                        text: 'Time Complexity Comparison',
+                                        color: 'white',
+                                        font: { size: 16 }
+                                    },
+                                    legend: {
+                                        labels: {
+                                            color: 'white'
+                                        }
                                     }
-                                    chart.scales.y.ticks = ticks.map(value => ({value, label: value.toString()}));
+                                },
+                                scales: {
+                                    x: {
+                                        title: {
+                                            display: true,
+                                            text: 'Number of Elements (n)',
+                                            color: 'white'
+                                        },
+                                        ticks: {
+                                            color: 'white'
+                                        },
+                                        grid: {
+                                            color: 'rgba(255, 255, 255, 0.1)'
+                                        }
+                                    },
+                                    y: {
+                                        title: {
+                                            display: true,
+                                            text: 'Number of Operations (approx.)',
+                                            color: 'white'
+                                        },
+                                        ticks: {
+                                            color: 'white'
+                                        },
+                                        grid: {
+                                            color: 'rgba(255, 255, 255, 0.1)'
+                                        },
+                                        type: 'logarithmic',
+                                        afterBuildTicks: chart => {
+                                            if (!chart || !chart.scales || !chart.scales.y || typeof chart.scales.y.max === 'undefined') {
+                                                console.warn('Chart y-axis not ready during afterBuildTicks for complexity chart.');
+                                                // Attempt to set some default ticks if scale is partially ready but max is not.
+                                                if (chart && chart.scales && chart.scales.y) {
+                                                     chart.scales.y.ticks = [{value: 1, label: '1'}, {value: 10, label: '10'}, {value: 100, label: '100'}, {value: 1000, label: '1k'}, {value: 10000, label: '10k'}, {value: 100000, label: '100k'}, {value: 1000000, label: '1M'}];
+                                                }
+                                                return;
+                                            }
+                                            const ticks = [];
+                                            let currentTick = 1;
+                                            // Ensure y.max is a number and positive before proceeding
+                                            const yMax = Number(chart.scales.y.max);
+                                            if (isNaN(yMax) || yMax <= 0) {
+                                                console.warn('Chart y-axis max value is invalid for logarithmic scale ticks.');
+                                                 chart.scales.y.ticks = [{value: 1, label: '1'}, {value: 10, label: '10'}, {value: 100, label: '100'}]; // Fallback ticks
+                                                return;
+                                            }
+
+                                            while (currentTick <= yMax) {
+                                                ticks.push(currentTick);
+                                                if (currentTick < 10) currentTick +=1;
+                                                else if (currentTick < 100) currentTick +=10;
+                                                else if (currentTick < 1000) currentTick +=100;
+                                                else if (currentTick < 10000) currentTick +=1000;
+                                                else if (currentTick < 100000) currentTick +=10000;
+                                                else currentTick +=100000;
+
+                                                if (ticks.length > 20 || currentTick > 2000000) break; // Limit number of ticks and prevent infinite loops
+                                            }
+                                            chart.scales.y.ticks = ticks.map(value => ({value, label: value >= 1000000 ? `${value/1000000}M` : (value >= 1000 ? `${value/1000}k` : value.toString())}));
+                                        }
+                                    }
                                 }
                             }
-                        }
+                        });
+                    } else {
+                        console.error("Chart.js library not loaded.");
                     }
-                });
+                } catch(e) {
+                    console.error("Error creating complexity chart:", e);
+                }
             }
 
 
             initializeAnimations() {
                 // Typed.js animation for title
-                new Typed('#typed-title', {
-                    strings: ['Algorithm Visualizer', 'Visualize Sorting', 'Sorting Algorithms'],
-                    typeSpeed: 50,
-                    backSpeed: 30,
-                    backDelay: 2000,
-                    loop: true
-                });
+                setTimeout(() => {
+                    try {
+                        const typedTitleElement = document.getElementById('typed-title');
+                        if (typedTitleElement) {
+                            if (typeof Typed !== 'undefined') {
+                                new Typed('#typed-title', {
+                                    strings: ['Algorithm Visualizer', 'Visualize Sorting', 'Sorting Algorithms'],
+                                    typeSpeed: 50,
+                                    backSpeed: 30,
+                                    backDelay: 2000,
+                                    loop: true
+                                });
+                            } else {
+                                console.warn('Typed.js library not loaded after a short delay. Setting static title.');
+                                typedTitleElement.textContent = 'Algorithm Visualizer';
+                            }
+                        } else {
+                             console.warn('#typed-title element not found for animation.');
+                        }
+                    } catch (e) {
+                        console.error("Error initializing Typed.js:", e);
+                        const typedTitleElement = document.getElementById('typed-title');
+                        if (typedTitleElement) {
+                            typedTitleElement.textContent = 'Algorithm Visualizer'; // Fallback title
+                        }
+                    }
+                }, 0);
 
                 // ScrollReveal animations for sections
-                ScrollReveal().reveal('#controls', { delay: 200, distance: '50px', origin: 'top', duration: 1000 });
-                ScrollReveal().reveal('#visualization', { delay: 400, distance: '50px', origin: 'left', duration: 1000 });
-                ScrollReveal().reveal('#algorithmInfo', { delay: 600, distance: '50px', origin: 'right', duration: 1000 });
-                ScrollReveal().reveal('.complexity-chart', { delay: 700, distance: '50px', origin: 'left', duration: 1000 });
-                ScrollReveal().reveal('#statistics', { delay: 800, distance: '50px', origin: 'bottom', duration: 1000 });
+                try {
+                    if (typeof ScrollReveal !== 'undefined') {
+                        ScrollReveal().reveal('#controls', { delay: 200, distance: '50px', origin: 'top', duration: 1000 });
+                        ScrollReveal().reveal('#visualization', { delay: 400, distance: '50px', origin: 'left', duration: 1000 });
+                        ScrollReveal().reveal('#algorithmInfo', { delay: 600, distance: '50px', origin: 'right', duration: 1000 });
+                        ScrollReveal().reveal('.complexity-chart', { delay: 700, distance: '50px', origin: 'left', duration: 1000 });
+                        ScrollReveal().reveal('#statistics', { delay: 800, distance: '50px', origin: 'bottom', duration: 1000 });
+                    } else {
+                        console.warn('ScrollReveal library not loaded.');
+                    }
+                } catch (e) {
+                    console.error("Error initializing ScrollReveal:", e);
+                }
 
 
                 // GSAP animations for interactive elements (buttons)
-                gsap.from('.glow-button', { duration: 1, scale: 0.8, opacity: 0, stagger: 0.2, ease: 'back.out(1.7)', delay: 1 });
+                try {
+                    if (typeof gsap !== 'undefined') {
+                        gsap.from('.glow-button', { duration: 1, scale: 0.8, opacity: 0, stagger: 0.2, ease: 'back.out(1.7)', delay: 1 });
+                    } else {
+                        console.warn('GSAP library not loaded.');
+                    }
+                } catch (e) {
+                    console.error("Error initializing GSAP animations:", e);
+                }
+
 
                 // Continuous stats update animation (only time)
                 setInterval(() => {
                     if (this.isRunning) {
                         this.updateStatsDisplay(); // Update time elapsed
-                        gsap.to('#timeElapsed', {
-                            duration: 0.3,
-                            scale: 1.05,
-                            yoyo: true,
-                            repeat: 1,
-                            ease: 'power2.inOut'
-                        });
+                        if (typeof gsap !== 'undefined') {
+                            gsap.to('#timeElapsed', {
+                                duration: 0.3,
+                                scale: 1.05,
+                                yoyo: true,
+                                repeat: 1,
+                                ease: 'power2.inOut'
+                            });
+                        }
                     }
                 }, 100); // Update time more frequently for smoother display
             }
@@ -1033,7 +1134,12 @@
                 .light-theme .text-gray-300 { color: #4a5568; }
                 .light-theme .text-gray-400 { color: #718096; }
 
-                .light-theme #complexityChart { /* Chart needs specific styling for light mode */ }
+                /* Ensure chart.js legend and titles are visible in light mode */
+                .light-theme .chartjs-legend-item-text, .light-theme .chartjs-title-text { color: #333 !important; }
+                .light-theme .chartjs-axis-title-text, .light-theme .chartjs-tick-text { color: #555 !important; }
+                .light-theme .chartjs-grid-line { border-color: rgba(0,0,0,0.1) !important; }
+
+
                  .light-theme .bar { box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
             `;
             document.head.appendChild(styleSheet);
@@ -1044,30 +1150,34 @@
             particlesContainer.className = 'fixed inset-0 pointer-events-none -z-10'; // Ensure it's behind content
             document.body.insertBefore(particlesContainer, document.body.firstChild);
 
-            for (let i = 0; i < 15; i++) { // Reduced number for subtlety
-                const particle = document.createElement('div');
-                particle.className = 'absolute rounded-full';
-                const size = Math.random() * 3 + 1; // Smaller particles
-                particle.style.width = `${size}px`;
-                particle.style.height = particle.style.width;
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.top = Math.random() * 100 + '%';
-                particle.style.background = `hsla(${Math.random() * 360}, 70%, 70%, 0.2)`; // More transparent
-                particle.style.opacity = '0'; // Start invisible
+            if (typeof anime !== 'undefined') {
+                for (let i = 0; i < 15; i++) { // Reduced number for subtlety
+                    const particle = document.createElement('div');
+                    particle.className = 'absolute rounded-full';
+                    const size = Math.random() * 3 + 1; // Smaller particles
+                    particle.style.width = `${size}px`;
+                    particle.style.height = particle.style.width;
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.top = Math.random() * 100 + '%';
+                    particle.style.background = `hsla(${Math.random() * 360}, 70%, 70%, 0.2)`; // More transparent
+                    particle.style.opacity = '0'; // Start invisible
 
-                anime({
-                    targets: particle,
-                    translateY: [anime.random(-50, 50), anime.random(-50, 50)],
-                    translateX: [anime.random(-50, 50), anime.random(-50, 50)],
-                    scale: [0.5, anime.random(1, 1.5)],
-                    opacity: [0, anime.random(0.1, 0.3), 0], // Fade in and out
-                    duration: Math.random() * 4000 + 3000,
-                    loop: true,
-                    direction: 'alternate',
-                    easing: 'easeInOutSine',
-                    delay: Math.random() * 1000
-                });
-                particlesContainer.appendChild(particle);
+                    anime({
+                        targets: particle,
+                        translateY: [anime.random(-50, 50), anime.random(-50, 50)],
+                        translateX: [anime.random(-50, 50), anime.random(-50, 50)],
+                        scale: [0.5, anime.random(1, 1.5)],
+                        opacity: [0, anime.random(0.1, 0.3), 0], // Fade in and out
+                        duration: Math.random() * 4000 + 3000,
+                        loop: true,
+                        direction: 'alternate',
+                        easing: 'easeInOutSine',
+                        delay: Math.random() * 1000
+                    });
+                    particlesContainer.appendChild(particle);
+                }
+            } else {
+                console.warn('Anime.js not loaded, particle animations disabled.');
             }
 
 
@@ -1101,8 +1211,10 @@
             function playTone(frequency, duration, type = 'sine', volume = 0.05) {
                 if (!audioContext || !soundEnabled) return;
                  if (audioContext.state === 'suspended') { // Attempt to resume context on interaction
-                    audioContext.resume();
+                    audioContext.resume().catch(e => console.warn("Could not resume audio context:", e));
                 }
+                if (audioContext.state !== 'running') return; // Don't play if context isn't running
+
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
 
@@ -1130,7 +1242,7 @@
                 soundEnabled = !soundEnabled;
                 soundToggle.innerHTML = soundEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
                 if (soundEnabled && audioContext && audioContext.state === 'suspended') {
-                    audioContext.resume(); // Try to resume if suspended
+                    audioContext.resume().catch(e => console.warn("Could not resume audio context on sound toggle:", e));
                 }
                 // Update classes for light/dark mode consistency
                 const isLight = document.body.classList.contains('light-theme');
@@ -1150,9 +1262,8 @@
             // Attach sound playing to visualizer actions (example for swap)
             const originalSwapBars = visualizer.swapBars.bind(visualizer);
             visualizer.swapBars = async function(i, j) {
-                if (soundEnabled && audioContext) {
+                if (soundEnabled && audioContext && this.array[i] !== undefined && this.array[j] !== undefined) {
                     const val1 = this.array[i];
-                    const val2 = this.array[j];
                     // Map value to frequency (e.g., 100-1000 Hz for values 0-350)
                     const freq1 = 100 + (val1 / 350) * 900;
                     playTone(freq1, 50, 'triangle');
@@ -1161,7 +1272,7 @@
             };
              const originalHighlightBars = visualizer.highlightBars.bind(visualizer);
             visualizer.highlightBars = async function(indices, className, duration) {
-                if (soundEnabled && audioContext && className === 'bar-comparing' && indices.length > 0) {
+                if (soundEnabled && audioContext && className === 'bar-comparing' && indices.length > 0 && this.array[indices[0]] !== undefined) {
                     const val = this.array[indices[0]];
                     const freq = 200 + (val / 350) * 600;
                     playTone(freq, Math.min(50, duration), 'sine', 0.03);
@@ -1171,9 +1282,12 @@
 
 
             // Enhanced tooltips with more context
-            tippy('#algorithmSelect', { content: 'Select a sorting algorithm to visualize its process and complexity.', theme: 'dark', placement: 'bottom' });
-            tippy('#arraySize', { content: 'Adjust the number of elements in the array (10-100). Larger arrays take longer.', theme: 'dark', placement: 'bottom' });
-            tippy('#speed', { content: 'Control the animation speed (1: slowest, 10: fastest).', theme: 'dark', placement: 'bottom' });
+            if (typeof tippy !== 'undefined') {
+                tippy('#algorithmSelect', { content: 'Select a sorting algorithm to visualize its process and complexity.', theme: 'dark', placement: 'bottom' });
+                tippy('#arraySize', { content: 'Adjust the number of elements in the array (10-100). Larger arrays take longer.', theme: 'dark', placement: 'bottom' });
+                tippy('#speed', { content: 'Control the animation speed (1: slowest, 10: fastest).', theme: 'dark', placement: 'bottom' });
+            }
+
 
             console.log('🎉 Sorting Algorithm Visualizer initialized successfully!');
             console.log('⌨️ Keyboard Shortcuts: Space = Start/Pause, R = Reset');
