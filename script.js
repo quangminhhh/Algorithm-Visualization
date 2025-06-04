@@ -53,11 +53,57 @@
                         worstComplexity: 'O(n log n)'
                     }
                 };
+
+                this.pseudocodes = {
+                    bubble: [
+                        'for i from 0 to n-1',
+                        '  for j from 0 to n-i-1',
+                        '    if A[j] > A[j+1]',
+                        '      swap A[j], A[j+1]',
+                        '  mark n-i-1 as sorted'
+                    ],
+                    selection: [
+                        'for i from 0 to n-1',
+                        '  minIndex = i',
+                        '  for j from i+1 to n-1',
+                        '    if A[j] < A[minIndex]',
+                        '      minIndex = j',
+                        '  swap A[i], A[minIndex]'
+                    ],
+                    insertion: [
+                        'for i from 1 to n-1',
+                        '  key = A[i]',
+                        '  j = i - 1',
+                        '  while j >= 0 and A[j] > key',
+                        '    A[j+1] = A[j]; j--',
+                        '  A[j+1] = key'
+                    ],
+                    merge: [
+                        'if left >= right return',
+                        'mid = (left + right) / 2',
+                        'mergeSort(left, mid)',
+                        'mergeSort(mid+1, right)',
+                        'merge(left, mid, right)'
+                    ],
+                    quick: [
+                        'if low < high',
+                        '  pi = partition(low, high)',
+                        '  quickSort(low, pi-1)',
+                        '  quickSort(pi+1, high)'
+                    ],
+                    heap: [
+                        'buildMaxHeap()',
+                        'for i from n-1 downto 1',
+                        '  swap A[0], A[i]',
+                        '  heapify(0, i)'
+                    ]
+                };
                 this.initializeEventListeners();
                 this.generateArray(); // Generate initial array
                 this.updateAlgorithmInfo(); // Set initial algorithm info
                 this.initializeAnimations();
                 this.createComplexityChart();
+                this.displayPseudocode();
             }
 
             initializeEventListeners() {
@@ -189,19 +235,24 @@
             async bubbleSort() {
                 const n = this.array.length;
                 for (let i = 0; i < n - 1; i++) {
+                    this.highlightPseudo(0);
                     for (let j = 0; j < n - i - 1; j++) {
+                        this.highlightPseudo(1);
                         if (!this.isRunning) return;
 
                         await this.highlightBars([j, j + 1], 'bar-comparing', this.speed);
                         this.updateStats('comparisons');
-
+                        this.highlightPseudo(2);
                         if (this.array[j] > this.array[j + 1]) {
+                            this.highlightPseudo(3);
                             await this.swapBars(j, j + 1);
                         }
                     }
+                    this.highlightPseudo(4);
                     await this.highlightBars([n - i - 1], 'bar-sorted', 100); // Mark as sorted
                 }
                 if (n > 0) await this.highlightBars([0], 'bar-sorted', 100); // Mark the last element if exists
+                this.clearPseudoHighlight();
             }
 
             async selectionSort() {
@@ -209,22 +260,30 @@
                 for (let i = 0; i < n - 1; i++) {
                     if (!this.isRunning) return;
 
+                    this.highlightPseudo(0);
+
                     let minIdx = i;
+                    this.highlightPseudo(1);
                     for (let j = i + 1; j < n; j++) {
+                        this.highlightPseudo(2);
                         await this.highlightBars([j, minIdx], 'bar-comparing', this.speed);
                         this.updateStats('comparisons');
 
+                        this.highlightPseudo(3);
                         if (this.array[j] < this.array[minIdx]) {
+                            this.highlightPseudo(4);
                             minIdx = j;
                         }
                     }
 
                     if (minIdx !== i) {
+                        this.highlightPseudo(5);
                         await this.swapBars(i, minIdx);
                     }
                     await this.highlightBars([i], 'bar-sorted', 100);
                 }
                 if (n > 0) await this.highlightBars([n - 1], 'bar-sorted', 100);
+                this.clearPseudoHighlight();
             }
 
             async insertionSort() {
@@ -234,14 +293,20 @@
                 for (let i = 1; i < n; i++) {
                     if (!this.isRunning) return;
 
+                    this.highlightPseudo(0);
+
                     let key = this.array[i];
+                    this.highlightPseudo(1);
                     let j = i - 1;
+                    this.highlightPseudo(2);
 
                     // Highlight the element being inserted
                     await this.highlightBars([i], 'bar-comparing', this.speed);
 
                     while (j >= 0 && this.array[j] > key) {
                         if (!this.isRunning) return;
+
+                        this.highlightPseudo(3);
 
                         await this.highlightBars([j, j + 1], 'bar-comparing', this.speed);
                         this.updateStats('comparisons');
@@ -256,9 +321,11 @@
 
                         j--;
                         this.updateStats('swaps'); // This is more of a shift
+                        this.highlightPseudo(4);
                     }
 
                     this.array[j + 1] = key;
+                    this.highlightPseudo(5);
                     const bars = document.querySelectorAll('.bar');
                     if (bars[j + 1]) {
                         bars[j + 1].style.height = `${key}px`;
@@ -271,6 +338,7 @@
                         await this.highlightBars([k], 'bar-sorted', 50);
                     }
                 }
+                this.clearPseudoHighlight();
             }
 
             async mergeSort(left = 0, right = this.array.length - 1) {
@@ -636,6 +704,31 @@
                 document.getElementById('avgComplexity').textContent = info.avgComplexity;
                 document.getElementById('bestComplexity').textContent = info.bestComplexity;
                 document.getElementById('worstComplexity').textContent = info.worstComplexity;
+                this.displayPseudocode();
+            }
+
+            displayPseudocode() {
+                const algorithm = document.getElementById('algorithmSelect').value;
+                const codeLines = this.pseudocodes[algorithm] || [];
+                const container = document.getElementById('pseudocode');
+                if (!container) return;
+                container.innerHTML = codeLines.map(line => `<span class="pseudocode-line">${line}</span>`).join('\n');
+            }
+
+            highlightPseudo(index) {
+                const lines = document.querySelectorAll('#pseudocode .pseudocode-line');
+                lines.forEach((el, i) => {
+                    if (i === index) {
+                        el.classList.add('highlight');
+                    } else {
+                        el.classList.remove('highlight');
+                    }
+                });
+            }
+
+            clearPseudoHighlight() {
+                const lines = document.querySelectorAll('#pseudocode .pseudocode-line');
+                lines.forEach(el => el.classList.remove('highlight'));
             }
 
             createComplexityChart() {
