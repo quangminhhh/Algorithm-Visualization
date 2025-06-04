@@ -2,6 +2,11 @@
             constructor() {
                 this.array = [];
                 this.isRunning = false;
+                this.isPaused = false;
+                this.pauseResolver = null;
+                this.stepMode = false;
+                this.stepHistory = [];
+                this.stepIndex = 0;
                 this.stats = { comparisons: 0, swaps: 0, arrayAccess: 0, startTime: 0 };
                 this.speed = 100; // Default speed, will be updated by slider
                 this.algorithms = {
@@ -80,6 +85,24 @@
                 document.getElementById('resetBtn').addEventListener('click', () => {
                     this.resetArray();
                 });
+
+                document.getElementById('pauseBtn').addEventListener('click', () => {
+                    if (this.isPaused) {
+                        this.resume();
+                        document.getElementById('pauseBtn').innerHTML = '<i class="fas fa-pause mr-2"></i>Pause';
+                    } else {
+                        this.pause();
+                        document.getElementById('pauseBtn').innerHTML = '<i class="fas fa-play mr-2"></i>Resume';
+                    }
+                });
+
+                document.getElementById('nextStepBtn').addEventListener('click', () => {
+                    this.nextStep();
+                });
+
+                document.getElementById('prevStepBtn').addEventListener('click', () => {
+                    this.previousStep();
+                });
             }
 
             generateArray() {
@@ -131,6 +154,8 @@
                 indices.forEach(i => {
                     if (bars[i]) bars[i].classList.remove(className);
                 });
+                this.recordStep();
+                await this.checkPaused();
             }
 
             async swapBars(i, j) {
@@ -157,6 +182,8 @@
 
 
                 this.updateStats('swaps');
+                this.recordStep();
+                await this.checkPaused();
             }
 
             async bubbleSort() {
@@ -417,6 +444,9 @@
                 if (this.isRunning) return;
 
                 this.isRunning = true;
+                this.isPaused = false;
+                this.stepHistory = [ [...this.array] ];
+                this.stepIndex = 0;
                 this.resetStats();
                 this.stats.startTime = Date.now();
 
@@ -542,7 +572,9 @@
             resetArray() {
                 if (this.isRunning) {
                     this.isRunning = false; // Signal to stop ongoing sort
-                    // Enable controls immediately
+                    this.isPaused = false;
+                    if (this.pauseResolver) this.pauseResolver();
+                // Enable controls immediately
                     const startBtn = document.getElementById('startBtn');
                     startBtn.innerHTML = '<i class="fas fa-play mr-2"></i>Start';
                     startBtn.disabled = false;
@@ -558,6 +590,8 @@
                 }
 
                 this.generateArray(); // Generates new array and calls renderArray & resetStats
+                this.stepHistory = [ [...this.array] ];
+                this.stepIndex = 0;
                 // Clear any lingering highlights or special styles from bars
                 document.querySelectorAll('.bar').forEach(bar => {
                     bar.classList.remove('bar-comparing', 'bar-swapping', 'bar-sorted');
@@ -818,6 +852,59 @@
                         }
                     }
                 }, 100); // Update time more frequently for smoother display
+            }
+
+            async checkPaused() {
+                if (this.isPaused) {
+                    await new Promise(resolve => this.pauseResolver = resolve);
+                    this.pauseResolver = null;
+                    if (this.stepMode) this.isPaused = true;
+                }
+            }
+
+            recordStep() {
+                this.stepHistory.push([...this.array]);
+                this.stepIndex = this.stepHistory.length - 1;
+            }
+
+            showSnapshot(snapshot) {
+                const bars = document.querySelectorAll('.bar');
+                snapshot.forEach((val, idx) => {
+                    if (bars[idx]) {
+                        bars[idx].style.height = `${val}px`;
+                        if (bars[idx]._tippy) bars[idx].setAttribute('data-tippy-content', `Value: ${val}, Index: ${idx}`);
+                    }
+                });
+            }
+
+            pause() {
+                if (this.isRunning) {
+                    this.isPaused = true;
+                    this.stepMode = false;
+                }
+            }
+
+            resume() {
+                if (this.isRunning) {
+                    this.isPaused = false;
+                    this.stepMode = false;
+                    if (this.pauseResolver) this.pauseResolver();
+                }
+            }
+
+            nextStep() {
+                if (this.isPaused && this.pauseResolver) {
+                    this.isPaused = false;
+                    this.stepMode = true;
+                    this.pauseResolver();
+                }
+            }
+
+            previousStep() {
+                if (this.isPaused && this.stepIndex > 0) {
+                    this.stepIndex--;
+                    this.showSnapshot(this.stepHistory[this.stepIndex]);
+                }
             }
 
             sleep(ms) {
