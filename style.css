@@ -81,3 +81,18 @@
         .complexity-chart {
             height: 300px;
         }
+
+        #pseudocodeContainer {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .pseudocode-line {
+            display: block;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .pseudocode-line.highlight {
+            background: rgba(255, 255, 255, 0.2);
+        }
