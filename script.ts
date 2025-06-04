@@ -1,3 +1,31 @@
+import gsap from 'gsap';
+import Chart from 'chart.js/auto';
+import { animate as anime } from 'animejs';
+import ScrollReveal from 'scrollreveal';
+import Typed from 'typed.js';
+import tippy from 'tippy.js';
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import 'tippy.js/dist/tippy.css';
+import './style.css';
+
+declare global {
+  interface Window {
+    gsap: typeof gsap;
+    Chart: typeof Chart;
+    anime: typeof anime;
+    ScrollReveal: typeof ScrollReveal;
+    Typed: typeof Typed;
+    tippy: typeof tippy;
+  }
+}
+
+window.gsap = gsap;
+window.Chart = Chart;
+window.anime = anime;
+window.ScrollReveal = ScrollReveal;
+window.Typed = Typed;
+window.tippy = tippy;
+
 // @ts-nocheck
         class SortingVisualizer {
             constructor() {
