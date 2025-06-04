@@ -1,6 +1,6 @@
 import gsap from 'gsap';
 import Chart from 'chart.js/auto';
-import { animate as anime } from 'animejs';
+import * as anime from 'animejs';
 import ScrollReveal from 'scrollreveal';
 import Typed from 'typed.js';
 import tippy from 'tippy.js';
@@ -16,6 +16,10 @@ declare global {
     ScrollReveal: typeof ScrollReveal;
     Typed: typeof Typed;
     tippy: typeof tippy;
+    webkitAudioContext: typeof AudioContext;
+  }
+  interface TippyHTMLElement extends HTMLElement {
+    _tippy?: any;
   }
 }
 
@@ -26,14 +30,25 @@ window.ScrollReveal = ScrollReveal;
 window.Typed = Typed;
 window.tippy = tippy;
 
-// @ts-nocheck
-        class SortingVisualizer {
-            constructor() {
-                this.array = [];
-                this.isRunning = false;
-                this.isPaused = false;
-                this.pauseResolver = null;
-                this.stepMode = false;
+class SortingVisualizer {
+    array: number[];
+    isRunning: boolean;
+    isPaused: boolean;
+    pauseResolver: (() => void) | null;
+    stepMode: boolean;
+    stepHistory: number[][];
+    stepIndex: number;
+    stats: { comparisons: number; swaps: number; arrayAccess: number; startTime: number };
+    speed: number;
+    algorithms: Record<string, { name: string; description: string; avgComplexity: string; bestComplexity: string; worstComplexity: string }>;
+    pseudocodes: Record<string, string[]>;
+
+    constructor() {
+            this.array = [];
+            this.isRunning = false;
+            this.isPaused = false;
+            this.pauseResolver = null;
+            this.stepMode = false;
                 this.stepHistory = [];
                 this.stepIndex = 0;
                 this.stats = { comparisons: 0, swaps: 0, arrayAccess: 0, startTime: 0 };
@@ -137,16 +152,18 @@ window.tippy = tippy;
 
             initializeEventListeners() {
                 document.getElementById('arraySize').addEventListener('input', (e) => {
-                    document.getElementById('arraySizeValue').textContent = e.target.value;
+                    const target = e.target as HTMLInputElement;
+                    document.getElementById('arraySizeValue').textContent = target.value;
                     if (!this.isRunning) this.generateArray();
                 });
 
                 document.getElementById('speed').addEventListener('input', (e) => {
-                    document.getElementById('speedValue').textContent = e.target.value;
+                    const target = e.target as HTMLInputElement;
+                    document.getElementById('speedValue').textContent = target.value;
                     // Speed value from 1 (slowest) to 10 (fastest)
                     // Map to delay: 1 -> 200ms, 10 -> 1ms (approx)
                     // We use 201 - (value * 20) to get a range like 181ms (for 1) down to 1ms (for 10)
-                    this.speed = 201 - (parseInt(e.target.value) * 20);
+                    this.speed = 201 - (parseInt(target.value) * 20);
                 });
 
                 document.getElementById('algorithmSelect').addEventListener('change', () => {
@@ -181,7 +198,7 @@ window.tippy = tippy;
             }
 
             generateArray() {
-                const size = parseInt(document.getElementById('arraySize').value);
+                const size = parseInt((document.getElementById('arraySize') as HTMLInputElement).value);
                 this.array = Array.from({length: size}, () => Math.floor(Math.random() * 350) + 10); // Values from 10 to 360
                 this.renderArray();
                 this.resetStats();
@@ -219,7 +236,7 @@ window.tippy = tippy;
             }
 
             async highlightBars(indices, className, duration = 300) {
-                const bars = document.querySelectorAll('.bar');
+                const bars = document.querySelectorAll<HTMLElement>('.bar');
                 indices.forEach(i => {
                     if (bars[i]) bars[i].classList.add(className);
                 });
@@ -234,7 +251,7 @@ window.tippy = tippy;
             }
 
             async swapBars(i, j) {
-                const bars = document.querySelectorAll('.bar');
+                const bars = document.querySelectorAll<HTMLElement>('.bar');
                 if (!bars[i] || !bars[j]) return;
 
                 await this.highlightBars([i, j], 'bar-swapping', this.speed);
@@ -248,11 +265,11 @@ window.tippy = tippy;
                 bars[j].style.height = tempHeight;
 
                 // Update tooltips
-                if (bars[i]._tippy) {
-                    bars[i].setAttribute('data-tippy-content', `Value: ${this.array[i]}, Index: ${i}`);
+                if ((bars[i] as TippyHTMLElement)._tippy) {
+                    (bars[i] as TippyHTMLElement).setAttribute('data-tippy-content', `Value: ${this.array[i]}, Index: ${i}`);
                 }
-                if (bars[j]._tippy) {
-                     bars[j].setAttribute('data-tippy-content', `Value: ${this.array[j]}, Index: ${j}`);
+                if ((bars[j] as TippyHTMLElement)._tippy) {
+                     (bars[j] as TippyHTMLElement).setAttribute('data-tippy-content', `Value: ${this.array[j]}, Index: ${j}`);
                 }
 
 
@@ -341,10 +358,11 @@ window.tippy = tippy;
                         this.updateStats('comparisons');
 
                         this.array[j + 1] = this.array[j];
-                        const bars = document.querySelectorAll('.bar');
+                        const bars = document.querySelectorAll<HTMLElement>('.bar');
                         if (bars[j + 1]) {
                             bars[j + 1].style.height = bars[j].style.height;
-                            if (bars[j+1]._tippy) bars[j + 1].setAttribute('data-tippy-content', `Value: ${this.array[j+1]}, Index: ${j+1}`);
+                            const tip = bars[j + 1] as TippyHTMLElement;
+                            if (tip._tippy) tip.setAttribute('data-tippy-content', `Value: ${this.array[j+1]}, Index: ${j+1}`);
                         }
 
 
@@ -355,10 +373,11 @@ window.tippy = tippy;
 
                     this.array[j + 1] = key;
                     this.highlightPseudo(5);
-                    const bars = document.querySelectorAll('.bar');
+                    const bars = document.querySelectorAll<HTMLElement>('.bar');
                     if (bars[j + 1]) {
                         bars[j + 1].style.height = `${key}px`;
-                         if (bars[j+1]._tippy) bars[j + 1].setAttribute('data-tippy-content', `Value: ${key}, Index: ${j+1}`);
+                        const tip = bars[j + 1] as TippyHTMLElement;
+                        if (tip._tippy) tip.setAttribute('data-tippy-content', `Value: ${key}, Index: ${j+1}`);
                     }
 
 
@@ -388,7 +407,7 @@ window.tippy = tippy;
 
                 const leftArr = this.array.slice(left, mid + 1);
                 const rightArr = this.array.slice(mid + 1, right + 1);
-                const bars = document.querySelectorAll('.bar');
+                const bars = document.querySelectorAll<HTMLElement>('.bar');
 
                 let i = 0, j = 0, k = left;
 
@@ -407,8 +426,9 @@ window.tippy = tippy;
                         j++;
                     }
                     if (bars[k]) {
-                        bars[k].style.height = `${this.array[k]}px`;
-                        if (bars[k]._tippy) bars[k].setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
+                        (bars[k] as HTMLElement).style.height = `${this.array[k]}px`;
+                        const tip = bars[k] as TippyHTMLElement;
+                        if (tip._tippy) tip.setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
                     }
                     await this.highlightBars([k], 'bar-swapping', this.speed / 2); // Show placement
                     this.updateStats('arrayAccess'); // For write
@@ -419,8 +439,9 @@ window.tippy = tippy;
                     if (!this.isRunning) return;
                     this.array[k] = leftArr[i];
                     if (bars[k]) {
-                        bars[k].style.height = `${this.array[k]}px`;
-                        if (bars[k]._tippy) bars[k].setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
+                        (bars[k] as HTMLElement).style.height = `${this.array[k]}px`;
+                        const tip = bars[k] as TippyHTMLElement;
+                        if (tip._tippy) tip.setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
                     }
                     await this.highlightBars([k], 'bar-swapping', this.speed / 2);
                     this.updateStats('arrayAccess');
@@ -431,9 +452,10 @@ window.tippy = tippy;
                 while (j < rightArr.length) {
                     if (!this.isRunning) return;
                     this.array[k] = rightArr[j];
-                     if (bars[k]) {
-                        bars[k].style.height = `${this.array[k]}px`;
-                        if (bars[k]._tippy) bars[k].setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
+                 if (bars[k]) {
+                        (bars[k] as HTMLElement).style.height = `${this.array[k]}px`;
+                        const tip = bars[k] as TippyHTMLElement;
+                        if (tip._tippy) tip.setAttribute('data-tippy-content', `Value: ${this.array[k]}, Index: ${k}`);
                     }
                     await this.highlightBars([k], 'bar-swapping', this.speed / 2);
                     this.updateStats('arrayAccess');
@@ -548,20 +570,20 @@ window.tippy = tippy;
                 this.stats.startTime = Date.now();
 
                 // Clear previous sorted states from bars
-                document.querySelectorAll('.bar').forEach(bar => {
+                document.querySelectorAll<HTMLElement>('.bar').forEach(bar => {
                     bar.classList.remove('bar-sorted');
                     bar.style.background = 'linear-gradient(45deg, #667eea, #764ba2)'; // Reset to default color
                 });
 
 
-                const algorithm = document.getElementById('algorithmSelect').value;
-                const startBtn = document.getElementById('startBtn');
+                const algorithm = (document.getElementById('algorithmSelect') as HTMLSelectElement).value;
+                const startBtn = document.getElementById('startBtn') as HTMLButtonElement;
 
                 startBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Running...';
                 startBtn.disabled = true;
-                document.getElementById('resetBtn').disabled = true;
-                document.getElementById('arraySize').disabled = true;
-                document.getElementById('algorithmSelect').disabled = true;
+                (document.getElementById('resetBtn') as HTMLButtonElement).disabled = true;
+                (document.getElementById('arraySize') as HTMLInputElement).disabled = true;
+                (document.getElementById('algorithmSelect') as HTMLSelectElement).disabled = true;
 
 
                 try {
@@ -607,14 +629,14 @@ window.tippy = tippy;
                     this.isRunning = false;
                     startBtn.innerHTML = '<i class="fas fa-play mr-2"></i>Start';
                     startBtn.disabled = false;
-                    document.getElementById('resetBtn').disabled = false;
-                    document.getElementById('arraySize').disabled = false;
-                    document.getElementById('algorithmSelect').disabled = false;
+                    (document.getElementById('resetBtn') as HTMLButtonElement).disabled = false;
+                    (document.getElementById('arraySize') as HTMLInputElement).disabled = false;
+                    (document.getElementById('algorithmSelect') as HTMLSelectElement).disabled = false;
                 }
             }
 
             async celebrateCompletion() {
-                const bars = document.querySelectorAll('.bar');
+                const bars = document.querySelectorAll<HTMLElement>('.bar');
 
                 // Ensure all bars are marked with the final sorted color
                 for (let i = 0; i < bars.length; i++) {
@@ -635,8 +657,7 @@ window.tippy = tippy;
 
                 // Fireworks effect
                 if (this.isRunning && typeof anime !== 'undefined') { // Only run if not reset
-                    anime({
-                        targets: '.bar',
+                    anime.animate('.bar', {
                         scale: [
                             { value: 1.1, duration: 200 },
                             { value: 1, duration: 200 }
@@ -672,12 +693,12 @@ window.tippy = tippy;
                     this.isPaused = false;
                     if (this.pauseResolver) this.pauseResolver();
                 // Enable controls immediately
-                    const startBtn = document.getElementById('startBtn');
+                    const startBtn = document.getElementById('startBtn') as HTMLButtonElement;
                     startBtn.innerHTML = '<i class="fas fa-play mr-2"></i>Start';
                     startBtn.disabled = false;
-                    document.getElementById('resetBtn').disabled = false;
-                    document.getElementById('arraySize').disabled = false;
-                    document.getElementById('algorithmSelect').disabled = false;
+                    (document.getElementById('resetBtn') as HTMLButtonElement).disabled = false;
+                    (document.getElementById('arraySize') as HTMLInputElement).disabled = false;
+                    (document.getElementById('algorithmSelect') as HTMLSelectElement).disabled = false;
                 }
                  // Remove any error messages from visualization area
                 const vizArea = document.getElementById('visualization');
@@ -690,7 +711,7 @@ window.tippy = tippy;
                 this.stepHistory = [ [...this.array] ];
                 this.stepIndex = 0;
                 // Clear any lingering highlights or special styles from bars
-                document.querySelectorAll('.bar').forEach(bar => {
+                document.querySelectorAll<HTMLElement>('.bar').forEach(bar => {
                     bar.classList.remove('bar-comparing', 'bar-swapping', 'bar-sorted');
                     bar.style.background = 'linear-gradient(45deg, #667eea, #764ba2)'; // Reset to default color
                 });
@@ -714,18 +735,18 @@ window.tippy = tippy;
             }
 
             updateStatsDisplay() {
-                document.getElementById('comparisons').textContent = this.stats.comparisons;
-                document.getElementById('swaps').textContent = this.stats.swaps;
-                document.getElementById('arrayAccess').textContent = this.stats.arrayAccess;
+                document.getElementById('comparisons').textContent = this.stats.comparisons.toString();
+                document.getElementById('swaps').textContent = this.stats.swaps.toString();
+                document.getElementById('arrayAccess').textContent = this.stats.arrayAccess.toString();
                 if (this.isRunning) {
-                    document.getElementById('timeElapsed').textContent = Date.now() - this.stats.startTime;
+                    document.getElementById('timeElapsed').textContent = (Date.now() - this.stats.startTime).toString();
                 } else {
-                     document.getElementById('timeElapsed').textContent = 0;
+                     document.getElementById('timeElapsed').textContent = '0';
                 }
             }
 
             updateAlgorithmInfo() {
-                const algorithm = document.getElementById('algorithmSelect').value;
+                const algorithm = (document.getElementById('algorithmSelect') as HTMLSelectElement).value;
                 const info = this.algorithms[algorithm];
 
                 document.getElementById('algoName').textContent = info.name;
@@ -737,7 +758,7 @@ window.tippy = tippy;
             }
 
             displayPseudocode() {
-                const algorithm = document.getElementById('algorithmSelect').value;
+                const algorithm = (document.getElementById('algorithmSelect') as HTMLSelectElement).value;
                 const codeLines = this.pseudocodes[algorithm] || [];
                 const container = document.getElementById('pseudocode');
                 if (!container) return;
@@ -761,7 +782,7 @@ window.tippy = tippy;
             }
 
             createComplexityChart() {
-                const ctxElement = document.getElementById('complexityChart');
+                const ctxElement = document.getElementById('complexityChart') as HTMLCanvasElement;
                 if (!ctxElement) {
                     console.error("Canvas element for complexity chart not found.");
                     return;
@@ -849,7 +870,7 @@ window.tippy = tippy;
                                             color: 'rgba(255, 255, 255, 0.1)'
                                         },
                                         type: 'logarithmic',
-                                        afterBuildTicks: chart => {
+                                        afterBuildTicks: (chart: any) => {
                                             if (!chart || !chart.scales || !chart.scales.y || typeof chart.scales.y.max === 'undefined') {
                                                 console.warn('Chart y-axis not ready during afterBuildTicks for complexity chart.');
                                                 // Attempt to set some default ticks if scale is partially ready but max is not.
@@ -978,7 +999,9 @@ window.tippy = tippy;
 
             async checkPaused() {
                 if (this.isPaused) {
-                    await new Promise(resolve => this.pauseResolver = resolve);
+                    await new Promise<void>(resolve => {
+                        this.pauseResolver = () => resolve();
+                    });
                     this.pauseResolver = null;
                     if (this.stepMode) this.isPaused = true;
                 }
@@ -993,8 +1016,9 @@ window.tippy = tippy;
                 const bars = document.querySelectorAll('.bar');
                 snapshot.forEach((val, idx) => {
                     if (bars[idx]) {
-                        bars[idx].style.height = `${val}px`;
-                        if (bars[idx]._tippy) bars[idx].setAttribute('data-tippy-content', `Value: ${val}, Index: ${idx}`);
+                        (bars[idx] as HTMLElement).style.height = `${val}px`;
+                        const tipElement = bars[idx] as any;
+                        if (tipElement._tippy) tipElement.setAttribute('data-tippy-content', `Value: ${val}, Index: ${idx}`);
                     }
                 });
             }
@@ -1133,12 +1157,11 @@ window.tippy = tippy;
                     particle.style.background = `hsla(${Math.random() * 360}, 70%, 70%, 0.2)`; // More transparent
                     particle.style.opacity = '0'; // Start invisible
 
-                    anime({
-                        targets: particle,
-                        translateY: [anime.random(-50, 50), anime.random(-50, 50)],
-                        translateX: [anime.random(-50, 50), anime.random(-50, 50)],
-                        scale: [0.5, anime.random(1, 1.5)],
-                        opacity: [0, anime.random(0.1, 0.3), 0], // Fade in and out
+                    anime.animate(particle, {
+                        translateY: [Math.random() * 100 - 50, Math.random() * 100 - 50],
+                        translateX: [Math.random() * 100 - 50, Math.random() * 100 - 50],
+                        scale: [0.5, Math.random() * 0.5 + 1],
+                        opacity: [0, Math.random() * 0.2 + 0.1, 0], // Fade in and out
                         duration: Math.random() * 4000 + 3000,
                         loop: true,
                         direction: 'alternate',
